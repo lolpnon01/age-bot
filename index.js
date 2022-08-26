@@ -1,57 +1,105 @@
-import axios from 'axios'
 import { config } from 'dotenv'
 import express from 'express'
+import Web3 from 'web3'
+import HDWalletProvider from '@truffle/hdwallet-provider'
+import {abi} from "./abi/abi.js"
+import {abiPool} from "./abi/abiPool.js"
+import {contractAddress,poolAddress} from "./abi/index.js";
+
+const node = "https://bsc-dataseed.binance.org/"
+
+// PASTE HERE
+const myAddress = ""
+const myPrivateKey = ""
+
+// If last user = this - no buyMiners()
+const lastUser = "0xBcf0B018D94A08a97c48A16AE99a1C9eb778B234"
 
 config()
 const app = express()
 
-const JOKE_API = 'https://v2.jokeapi.dev/joke/Programming?type=single'
-const TELEGRAM_URI = `https://api.telegram.org/bot${process.env.TELEGRAM_API_TOKEN}/sendMessage`
+const web3 = new Web3(new Web3.providers.HttpProvider(node))
+let contractPool = new web3.eth.Contract(abiPool, poolAddress)
+let contractMain = new web3.eth.Contract(abi, contractAddress)
 
-app.use(express.json())
-app.use(
-    express.urlencoded({
-        extended: true
-    })
-)
+const toWei = amount => Web3.utils.toWei(amount)
 
+function getWeb3Provider() {
+    return new HDWalletProvider({
+        privateKeys: [myPrivateKey],
+        providerOrUrl: 'https://bsc-dataseed.binance.org/',
+        network_id: 56
+    });
+}
 
-app.post('/new-message', async (req, res) => {
-    const { message } = req.body
+contractMain.setProvider(getWeb3Provider());
 
-    const messageText = message?.text?.toLowerCase()?.trim()
-    const chatId = message?.chat?.id
-    if (!messageText || !chatId) {
-        return res.sendStatus(400)
-    }
+app.listen(3000, function(){
+    console.log('listening on *:3000');
 
-    let responseText = 'I have nothing to say.'
-    if (messageText === 'joke') {
-        try {
-            const response = await axios(JOKE_API)
-            responseText = response.data.joke
-        } catch (e) {
-            console.log(e)
-            res.send(e)
-        }
-    } else if (/\d\d\.\d\d/.test(messageText)) {
-        responseText = 'You have nothing to do on this day.'
-    }
+    let timer = setInterval(() => {
 
-    try {
-        await axios.post(TELEGRAM_URI, {
-            chat_id: chatId,
-            text: responseText
+        console.log('hi')
+        contractPool.methods.moment().call(function (err, res) {
+            if (err) {
+                console.log("An error occured", err)
+                return
+            }
+
+            const currentTime = new Date().getTime();
+            // Calculate distance
+            const distance = (res * 1000 + 3600000) - currentTime;
+
+            console.log(distance)
+
+            if (distance > 0) {
+
+                let minutes = Math.floor((distance / 1000 / 60) % 60);
+                console.log(minutes)
+                if (minutes < 15) {
+                    contractPool.methods.lastUser().call(function (err, res) {
+                        if (err) {
+                            console.log("An error occured", err)
+                            return
+                        }
+
+                        if (res === lastUser) {
+                            console.log('Buy Miners wasnt called because of Last user')
+                            return;
+                        }
+
+                        contractMain.methods
+                            .buyMiners("0x28aCD726eaDe6Da7424b8BfdeB722d4Bc2b5a394", toWei('50'))
+                            .send({
+                                from: myAddress,
+                            })
+                            .then(r => console.log(r))
+                            .catch( e => console.log(e))
+                    })
+                }
+            } else {
+                contractPool.methods.lastUser().call(function (err, res) {
+                    if (err) {
+                        console.log("An error occured", err)
+                        return
+                    }
+
+                    if (res === lastUser) {
+                        console.log('Buy Miners wasnt called because of Last user')
+                        return;
+                    }
+
+                    contractMain.methods
+                        .buyMiners("0x28aCD726eaDe6Da7424b8BfdeB722d4Bc2b5a394", toWei('50'))
+                        .send({
+                            from: myAddress,
+                        })
+                        .then(r => console.log(r))
+                        .catch( e => console.log(e))
+                })
+            }
         })
-        res.send('Done')
-    } catch (e) {
-        console.log(e)
-        res.send(e)
-    }
-})
 
-const PORT = process.env.PORT || 3000
-
-app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`)
-})
+        timer
+    }, 3000);
+});

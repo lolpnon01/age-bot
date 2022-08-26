@@ -2,8 +2,6 @@
   "name": "age-bot",
   "version": "1.0.0",
   "main": "index.js",
-  "repository": "https://github.com/lolpnon01/age-bot.git",
-  "author": "lolpnon01 <lolpnon01@mail.ru>",
   "license": "MIT",
   "private": true,
   "type": "module",
@@ -12,12 +10,16 @@
     "dev": "nodemon index.js"
   },
   "dependencies": {
+    "@truffle/hdwallet-provider": "^2.0.14",
     "axios": "^0.27.2",
     "dotenv": "^16.0.1",
     "express": "^4.18.1",
     "fs-extra": "^10.1.0",
     "google-spreadsheet": "^3.3.0",
-    "heroku": "^7.62.0"
+    "heroku": "^7.62.0",
+    "http": "^0.0.1-security",
+    "web3": "^1.7.5",
+    "web3-eth-accounts": "^1.7.5"
   },
   "devDependencies": {
     "nodemon": "^2.0.19"
